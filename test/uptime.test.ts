@@ -223,3 +223,10 @@ test('stopping the worker before start() settles leaves no polling timer behind'
   await settle()
   assert.equal(ticks.length, 0)
 })
+
+test('the marker alone prevents a re-seed after the list key is gone', async () => {
+  const { uptime, host, legacyReads } = setup({ storage: { seededFromMod: true }, legacy: { targets: [STAGING] } })
+  await uptime.start()
+  assert.equal(host.storage.get('targets'), undefined)
+  assert.equal(legacyReads(), 0)
+})
