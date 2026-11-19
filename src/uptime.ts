@@ -31,6 +31,7 @@ export const createUptime = (deps: UptimeDeps) => {
   let inFlight: Promise<void> | null = null
   let stopPolling: (() => void) | null = null
   let ready: Promise<void> = Promise.resolve()
+  let disposed = false
 
   const reportError = (what: string) => (error: unknown) =>
     deps.log(`${what} failed: ${String((error as Error)?.message ?? error).split('\n')[0]}`)
@@ -81,12 +82,19 @@ export const createUptime = (deps: UptimeDeps) => {
   }
 
   const startPolling = () => {
+    if (disposed) return
     stopPolling ??= deps.every(POLL_MS, () => void refresh().catch(reportError('check')))
   }
 
   const stop = () => {
     stopPolling?.()
     stopPolling = null
+  }
+
+  // Orca may stop the worker while start() is still awaiting storage; no timer may outlive that.
+  const dispose = () => {
+    disposed = true
+    stop()
   }
 
   const start = () => {
@@ -133,5 +141,5 @@ export const createUptime = (deps: UptimeDeps) => {
     return notification
   }
 
-  return { start, stop, checkNow, showStatus, turnOn: () => setOff(false), turnOff: () => setOff(true) }
+  return { start, dispose, checkNow, showStatus, turnOn: () => setOff(false), turnOff: () => setOff(true) }
 }

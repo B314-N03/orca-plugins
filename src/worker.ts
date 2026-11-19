@@ -56,6 +56,6 @@ export default function activate(orca: OrcaWorkerApi) {
 }
 
 export function deactivate() {
-  running?.stop()
+  running?.dispose()
   running = null
 }

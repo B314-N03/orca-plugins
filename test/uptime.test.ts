@@ -215,3 +215,11 @@ test('Check now answers with the status line as title and one line per deploymen
   })
   assert.deepEqual(host.notifications.at(-1), summary)
 })
+
+test('stopping the worker before start() settles leaves no polling timer behind', async () => {
+  const { uptime, ticks, settle } = setup()
+  void uptime.start()
+  uptime.dispose()
+  await settle()
+  assert.equal(ticks.length, 0)
+})
