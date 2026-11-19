@@ -1,20 +1,32 @@
 {
-  "manifestVersion": 1,
+  "$schema": "https://raw.githubusercontent.com/stablyai/orca/v1.4.263/docs/schemas/plugins/orca-plugin.v2.schema.json",
+  "manifestVersion": 2,
+  "execution": "trusted-worker",
   "id": "uptime",
-  "publisher": "local",
   "name": "Uptime",
-  "version": "0.1.0",
-  "description": "Checks your deployments' health endpoints every 60 s and notifies when one goes down, degrades or recovers.",
-  "engines": { "orca": ">=1.4.215" },
+  "version": "0.2.0",
+  "description": "Checks your deployments' health endpoints every 60 s: a status bar item, a panel with history and add/remove, and a notification when one goes down, degrades or recovers.",
+  "engines": { "orca": ">=1.4.248" },
   "pluginApi": 1,
   "main": "src/worker.ts",
   "contributes": {
+    "panels": [{ "id": "uptime", "title": "Uptime", "icon": "activity", "entry": "src/panel.tsx", "ui": "components" }],
     "commands": [
       { "id": "uptime.check", "title": "Uptime: Check now" },
       { "id": "uptime.status", "title": "Uptime: Show status" },
       { "id": "uptime.on", "title": "Uptime: Turn on" },
       { "id": "uptime.off", "title": "Uptime: Turn off" }
+    ],
+    "statusBarItems": [
+      {
+        "id": "uptime",
+        "text": "uptime …",
+        "icon": "activity",
+        "tone": "neutral",
+        "tooltip": "Deployment uptime · press to check now",
+        "command": "uptime.check"
+      }
     ]
   },
-  "capabilities": [{ "kind": "notifications:show" }, { "kind": "storage" }]
+  "capabilities": [{ "kind": "notifications:show" }, { "kind": "storage:own" }]
 }

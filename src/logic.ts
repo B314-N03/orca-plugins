@@ -161,7 +161,7 @@ const ICON: Record<UptimeHealth, string> = { up: '✓', degraded: '⚠', down: '
 
 export const TURN_ON_HINT = 'Run "Uptime: Turn on" to resume.'
 
-export const OFF_MESSAGE = `No checks and no notifications, also after a restart. ${TURN_ON_HINT}`
+export const OFF_MESSAGE = `No checks, no notifications and no status bar item, also after a restart. ${TURN_ON_HINT}`
 
 // While off nothing is checked, so the list says so and dates each result by
 // its last check instead of claiming a live "up for 6m".

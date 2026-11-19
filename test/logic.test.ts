@@ -133,7 +133,7 @@ test('while off, the list says so and dates results by their last check', () => 
 })
 
 test('the off message names what stops and how to resume', () => {
-  assert.equal(OFF_MESSAGE, 'No checks and no notifications, also after a restart. Run "Uptime: Turn on" to resume.')
+  assert.equal(OFF_MESSAGE, 'No checks, no notifications and no status bar item, also after a restart. Run "Uptime: Turn on" to resume.')
   assert.ok(OFF_MESSAGE.endsWith(TURN_ON_HINT))
 })
 

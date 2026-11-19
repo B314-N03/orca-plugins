@@ -1,14 +1,9 @@
 {
+  "extends": "./.orca/types/tsconfig.json",
   "compilerOptions": {
-    "target": "es2023",
-    "lib": ["es2023"],
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "types": ["node"],
-    "strict": true,
+    "typeRoots": ["./.orca/types", "./node_modules/@types"],
+    "types": ["orca", "orca-host", "orca-frame", "orca-worker", "orca-services", "orca-testing", "node"],
     "noUncheckedIndexedAccess": true,
-    "noEmit": true,
-    "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true

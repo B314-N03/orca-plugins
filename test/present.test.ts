@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { nextResult, transitionsBetween } from '../src/logic.ts'
-import { notificationFor, NOTIFICATION_TITLE_MAX, summaryNotification } from '../src/present.ts'
+import { notificationFor, NOTIFICATION_TITLE_MAX, offReport, snapshotOf, statusBarFor, statusReport } from '../src/present.ts'
 import { displayUrl } from '../src/url.ts'
 import { parseLegacyStore, planSeed } from '../src/seed.ts'
 import type { Probe, UptimeResult } from '../src/types.ts'
@@ -112,15 +112,63 @@ test('the legacy seed drops entries that would fail validation', () => {
   })
 })
 
-test('the summary notification carries the status line and one line per deployment, without URLs', () => {
-  const other = { name: 'prod', url: 'https://prod.example/health?token=secret' }
+const state = (results: UptimeResult[], isOff = false, targets = [target, other]) => ({ targets, results, isOff, now: 2 * 60_000 })
+const other = { name: 'prod', url: 'https://user:pw@prod.example/health?token=secret' }
+
+test('the status bar item carries the status line, a tone for the worst state and the problems as tooltip', () => {
   const down = run([ok, refused, refused])[2]!
   const prodUp = { ...run([ok])[0]!, name: 'prod', url: other.url }
-  assert.deepEqual(summaryNotification([target, other], [down, prodUp], 2 * 60_000, false), {
-    title: 'uptime 1/2 · staging ✗',
-    body: '✗ staging  down for just now · connection refused\n✓ prod  up for 2m · 200 · 80 ms',
+  const degraded = { ...run([degradedProbe])[0]!, name: 'prod', url: other.url }
+  assert.deepEqual(statusBarFor(state([down, prodUp])), {
+    id: 'uptime',
+    text: 'uptime 1/2 · staging ✗',
+    tone: 'danger',
+    tooltip: 'staging down (connection refused)',
+    visible: true,
   })
-  assert.deepEqual(summaryNotification([], [], 0, false), { title: 'uptime: no deployments', body: 'No deployments yet.' })
-  assert.deepEqual(summaryNotification([target], [], 0, false), { title: 'uptime …', body: '… staging  not checked yet' })
-  assert.equal(summaryNotification([target], [down], 0, true).title, 'uptime is off')
+  assert.deepEqual(statusBarFor(state([{ ...prodUp, name: 'staging', url: target.url }, degraded])), {
+    id: 'uptime',
+    text: 'uptime 1/2 · prod ⚠',
+    tone: 'warning',
+    tooltip: 'prod degraded (database, cache)',
+    visible: true,
+  })
+  assert.deepEqual(statusBarFor(state([{ ...prodUp, name: 'staging', url: target.url }, prodUp])), {
+    id: 'uptime',
+    text: 'uptime 2/2 ✓',
+    tone: 'success',
+    tooltip: 'Deployment uptime · press to check now',
+    visible: true,
+  })
+  assert.equal(statusBarFor(state([])).tone, 'neutral')
+  assert.equal(statusBarFor(state([])).text, 'uptime …')
+  assert.equal(statusBarFor(state([], false, [])).text, 'uptime: no deployments')
+  assert.equal(statusBarFor(state([down], true)).visible, false)
+})
+
+test('the panel snapshot has one row per deployment in list order, with redacted URLs', () => {
+  const prodUp = { ...run([ok])[0]!, name: 'prod', url: other.url, checkedAt: 90_000 }
+  const snapshot = snapshotOf(state([prodUp]), 60_000)
+  assert.equal(snapshot.isOff, false)
+  assert.equal(snapshot.pollMs, 60_000)
+  assert.equal(snapshot.checkedAt, 90_000)
+  assert.deepEqual(snapshot.deployments.map(d => [d.name, d.health, d.url]), [
+    ['staging', 'unknown', 'https://staging.example/health/ready'],
+    ['prod', 'up', 'https://prod.example/health?…'],
+  ])
+  assert.doesNotMatch(JSON.stringify(snapshot), /secret|user:pw/)
+  assert.equal(snapshotOf(state([]), 60_000).checkedAt, null)
+})
+
+test('commands answer with the status line and the list; while off, with the last known results', () => {
+  const down = run([ok, refused, refused])[2]!
+  assert.equal(
+    statusReport(state([down])),
+    'uptime 0/2 · staging ✗\n✗ staging  down for just now · connection refused  https://staging.example/health/ready\n… prod  not checked yet  https://prod.example/health?…',
+  )
+  assert.match(statusReport(state([down], true)), /^uptime is off: last known results/)
+  assert.equal(
+    offReport(),
+    'uptime off. No checks, no notifications and no status bar item, also after a restart. Run "Uptime: Turn on" to resume.',
+  )
 })
