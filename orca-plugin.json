@@ -1,0 +1,20 @@
+{
+  "manifestVersion": 1,
+  "id": "uptime",
+  "publisher": "local",
+  "name": "Uptime",
+  "version": "0.1.0",
+  "description": "Checks your deployments' health endpoints every 60 s and notifies when one goes down, degrades or recovers.",
+  "engines": { "orca": ">=1.4.215" },
+  "pluginApi": 1,
+  "main": "src/worker.ts",
+  "contributes": {
+    "commands": [
+      { "id": "uptime.check", "title": "Uptime: Check now" },
+      { "id": "uptime.status", "title": "Uptime: Show status" },
+      { "id": "uptime.on", "title": "Uptime: Turn on" },
+      { "id": "uptime.off", "title": "Uptime: Turn off" }
+    ]
+  },
+  "capabilities": [{ "kind": "notifications:show" }, { "kind": "storage" }]
+}
