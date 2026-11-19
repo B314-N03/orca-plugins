@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { nextResult, transitionsBetween } from '../src/logic.ts'
-import { displayUrl, notificationFor, NOTIFICATION_TITLE_MAX } from '../src/present.ts'
+import { notificationFor, NOTIFICATION_TITLE_MAX, summaryNotification } from '../src/present.ts'
+import { displayUrl } from '../src/url.ts'
 import { parseLegacyStore, planSeed } from '../src/seed.ts'
 import type { Probe, UptimeResult } from '../src/types.ts'
 
@@ -103,4 +104,25 @@ test('seeding happens once, so an emptied list stays empty', () => {
   assert.deepEqual(planSeed(null, legacy), { targets: legacy.targets, isOff: false })
   assert.equal(planSeed(true, legacy), null)
   assert.equal(planSeed(undefined, null), null)
+})
+
+test('the legacy seed drops entries that would fail validation', () => {
+  const good = { name: 'prod', url: 'https://prod.example/health' }
+  assert.deepEqual(parseLegacyStore({ targets: [good, { name: 'bad name', url: 'https://x.example' }, { name: 'ftp', url: 'ftp://x' }] }), {
+    targets: [good],
+    isOff: false,
+  })
+})
+
+test('the summary notification carries the status line and one line per deployment, without URLs', () => {
+  const other = { name: 'prod', url: 'https://prod.example/health?token=secret' }
+  const down = run([ok, refused, refused])[2]!
+  const prodUp = { ...run([ok])[0]!, name: 'prod', url: other.url }
+  assert.deepEqual(summaryNotification([target, other], [down, prodUp], 2 * 60_000, false), {
+    title: 'uptime 1/2 · staging ✗',
+    body: '✗ staging  down for just now · connection refused\n✓ prod  up for 2m · 200 · 80 ms',
+  })
+  assert.deepEqual(summaryNotification([], [], 0, false), { title: 'uptime: no deployments', body: 'No deployments yet.' })
+  assert.deepEqual(summaryNotification([target], [], 0, false), { title: 'uptime …', body: '… staging  not checked yet' })
+  assert.equal(summaryNotification([target], [down], 0, true).title, 'uptime is off')
 })

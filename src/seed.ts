@@ -1,4 +1,4 @@
-import { parseTargets } from './logic.ts'
+import { parseTargets, validateTarget } from './logic.ts'
 import type { UptimeTarget } from './types.ts'
 
 export type Seed = { targets: UptimeTarget[]; isOff: boolean }
@@ -7,9 +7,9 @@ export type Seed = { targets: UptimeTarget[]; isOff: boolean }
 export const parseLegacyStore = (raw: unknown): Seed | null => {
   if (typeof raw !== 'object' || raw === null) return null
   const { targets, isOff } = raw as { targets?: unknown; isOff?: unknown }
-  const parsed = parseTargets(targets)
-  if (parsed.length === 0) return null
-  return { targets: parsed, isOff: isOff === true }
+  const valid = parseTargets(targets).filter(target => validateTarget(target.name, target.url).ok)
+  if (valid.length === 0) return null
+  return { targets: valid, isOff: isOff === true }
 }
 
 // Seeds once: after the marker is set, an emptied list stays empty.

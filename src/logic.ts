@@ -1,4 +1,5 @@
 import type { Probe, UptimeHealth, UptimeResult, UptimeTarget } from './types.ts'
+import { displayUrl } from './url.ts'
 
 // A deployment counts as down only after this many failed probes in a row,
 // so a single network blip never raises an alert.
@@ -131,7 +132,7 @@ export const transitionsBetween = (
   after: readonly UptimeResult[],
   now: number,
 ): Transition[] =>
-  after.flatMap(result => {
+  after.flatMap((result): Transition[] => {
     const previous = before.find(one => one.name === result.name)
     if (!previous || previous.health === 'unknown' || result.health === 'unknown') return []
     if (previous.health === result.health) return []
@@ -146,7 +147,7 @@ export const changesBetween = (before: readonly UptimeResult[], after: readonly 
   transitionsBetween(before, after, now).map(transition => transition.text)
 
 export const statusText = (targets: readonly UptimeTarget[], results: readonly UptimeResult[]) => {
-  if (targets.length === 0) return 'uptime: no deployments (/uptime add <name> <url>)'
+  if (targets.length === 0) return 'uptime: no deployments'
   const known = results.filter(result => result.health !== 'unknown')
   if (known.length === 0) return 'uptime …'
   const healthy = known.filter(result => result.health === 'up').length
@@ -158,8 +159,9 @@ export const statusText = (targets: readonly UptimeTarget[], results: readonly U
 
 const ICON: Record<UptimeHealth, string> = { up: '✓', degraded: '⚠', down: '✗', unknown: '…' }
 
-export const OFF_MESSAGE =
-  'uptime off: no checks, no status line, no band, pane closed (also in new sessions). /uptime on to bring it back.'
+export const TURN_ON_HINT = 'Run "Uptime: Turn on" to resume.'
+
+export const OFF_MESSAGE = `No checks and no notifications, also after a restart. ${TURN_ON_HINT}`
 
 // While off nothing is checked, so the list says so and dates each result by
 // its last check instead of claiming a live "up for 6m".
@@ -168,57 +170,29 @@ export const listText = (
   results: readonly UptimeResult[],
   now: number,
   isOff = false,
+  { showUrls = true } = {},
 ) => {
-  if (targets.length === 0) return 'No deployments yet. Add one with /uptime add <name> <url>.'
+  if (targets.length === 0) return 'No deployments yet.'
+  const urlOf = (target: UptimeTarget) => (showUrls ? `  ${displayUrl(target.url)}` : '')
   const lines = targets.map(target => {
     const result = results.find(one => one.name === target.name)
-    if (!result || result.health === 'unknown') return `… ${target.name}  not checked yet  ${target.url}`
+    if (!result || result.health === 'unknown') return `… ${target.name}  not checked yet${urlOf(target)}`
     const latency = result.ms === null ? '' : ` · ${result.ms} ms`
     const when = isOff
       ? `at last check, ${formatSince(result.checkedAt, now)} ago`
       : `for ${formatSince(result.since, now)}`
-    return `${ICON[result.health]} ${target.name}  ${result.health} ${when} · ${reason(result)}${latency}  ${target.url}`
+    return `${ICON[result.health]} ${target.name}  ${result.health} ${when} · ${reason(result)}${latency}${urlOf(target)}`
   })
-  return [...(isOff ? ['uptime is off: last known results, not being checked. /uptime on to resume.'] : []), ...lines].join('\n')
+  return [...(isOff ? [`uptime is off: last known results, not being checked. ${TURN_ON_HINT}`] : []), ...lines].join('\n')
 }
 
-export type Command =
-  | { kind: 'open' }
-  | { kind: 'list' }
-  | { kind: 'check' }
-  | { kind: 'on' }
-  | { kind: 'off' }
-  | { kind: 'add'; target: UptimeTarget }
-  | { kind: 'remove'; name: string }
-  | { kind: 'invalid'; message: string }
+export type TargetValidation = { ok: true; target: UptimeTarget } | { ok: false; message: string }
 
-const USAGE = 'Use /uptime (pane), /uptime list, /uptime add <name> <url>, /uptime remove <name>, /uptime check, /uptime on|off.'
-
-export const parseCommand = (args: string): Command => {
-  const [verb = '', ...rest] = args.trim().split(/\s+/).filter(Boolean)
-  switch (verb.toLowerCase()) {
-    case '':
-      return { kind: 'open' }
-    case 'list':
-      return { kind: 'list' }
-    case 'check':
-      return { kind: 'check' }
-    case 'on':
-      return { kind: 'on' }
-    case 'off':
-      return { kind: 'off' }
-    case 'add': {
-      const [name, url] = rest
-      if (!name || !url) return { kind: 'invalid', message: 'Use /uptime add <name> <url>.' }
-      if (!/^[A-Za-z0-9_-]{1,32}$/.test(name)) return { kind: 'invalid', message: `Name "${name}": letters, digits, - and _ only.` }
-      if (!/^https?:\/\/[^\s/]+/.test(url)) return { kind: 'invalid', message: `"${url}" is not an http(s) URL.` }
-      return { kind: 'add', target: { name, url } }
-    }
-    case 'remove':
-      return rest[0] ? { kind: 'remove', name: rest[0] } : { kind: 'invalid', message: 'Use /uptime remove <name>.' }
-    default:
-      return { kind: 'invalid', message: USAGE }
-  }
+export const validateTarget = (name: string, url: string): TargetValidation => {
+  if (!name || !url) return { ok: false, message: 'A deployment needs a name and a URL.' }
+  if (!/^[A-Za-z0-9_-]{1,32}$/.test(name)) return { ok: false, message: `Name "${name}": letters, digits, - and _ only.` }
+  if (!/^https?:\/\/[^\s/]+/.test(url)) return { ok: false, message: `"${displayUrl(url)}" is not an http(s) URL.` }
+  return { ok: true, target: { name, url } }
 }
 
 export const upsertTarget = (targets: readonly UptimeTarget[], target: UptimeTarget) =>
@@ -231,5 +205,20 @@ export const parseTargets = (stored: unknown): UptimeTarget[] =>
     ? stored.filter(
         (one): one is UptimeTarget =>
           typeof one === 'object' && one !== null && typeof one.name === 'string' && typeof one.url === 'string',
+      )
+    : []
+
+// Results persisted by an earlier run; only shape-checked, since they are only displayed.
+export const parseResults = (stored: unknown): UptimeResult[] =>
+  Array.isArray(stored)
+    ? stored.filter(
+        (one): one is UptimeResult =>
+          typeof one === 'object' &&
+          one !== null &&
+          typeof one.name === 'string' &&
+          typeof one.url === 'string' &&
+          ['up', 'degraded', 'down', 'unknown'].includes(one.health) &&
+          Array.isArray(one.history) &&
+          Array.isArray(one.failing),
       )
     : []

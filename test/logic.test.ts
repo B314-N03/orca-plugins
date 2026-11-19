@@ -6,10 +6,11 @@ import {
   changesBetween,
   failingDependencies,
   nextResult,
-  parseCommand,
+  validateTarget,
   HISTORY,
   listText,
   OFF_MESSAGE,
+  TURN_ON_HINT,
   parseTargets,
   pendingResult,
   sparkline,
@@ -72,23 +73,27 @@ test('the status line counts healthy deployments and names the broken ones', () 
   const [up] = run([ok])
   const down = run([ok, refused, refused])[2]!
   const other = { name: 'prod', url: 'https://prod.example/health' }
-  assert.equal(statusText([], []), 'uptime: no deployments (/uptime add <name> <url>)')
+  assert.equal(statusText([], []), 'uptime: no deployments')
   assert.equal(statusText([target], []), 'uptime …')
   assert.equal(statusText([target], [up!]), 'uptime 1/1 ✓')
   assert.equal(statusText([target, other], [down, { ...up!, name: 'prod' }]), 'uptime 1/2 · staging ✗')
 })
 
-test('commands parse, and bad input answers with a reason', () => {
-  assert.deepEqual(parseCommand('add demo https://demo.example/health'), {
-    kind: 'add',
+test('a deployment validates, and bad input answers with a reason', () => {
+  assert.deepEqual(validateTarget('demo', 'https://demo.example/health'), {
+    ok: true,
     target: { name: 'demo', url: 'https://demo.example/health' },
   })
-  assert.equal(parseCommand('add demo ftp://x').kind, 'invalid')
-  assert.equal(parseCommand('add de mo').kind, 'invalid')
-  assert.deepEqual(parseCommand(' OFF '), { kind: 'off' })
-  assert.deepEqual(parseCommand(''), { kind: 'open' })
-  assert.deepEqual(parseCommand('list'), { kind: 'list' })
-  assert.deepEqual(parseCommand('remove'), { kind: 'invalid', message: 'Use /uptime remove <name>.' })
+  assert.deepEqual(validateTarget('demo', 'ftp://x'), { ok: false, message: '"ftp://x/" is not an http(s) URL.' })
+  assert.deepEqual(validateTarget('de mo', 'https://demo.example'), {
+    ok: false,
+    message: 'Name "de mo": letters, digits, - and _ only.',
+  })
+  assert.deepEqual(validateTarget('', 'https://demo.example'), { ok: false, message: 'A deployment needs a name and a URL.' })
+  assert.deepEqual(validateTarget('demo', 'token=abc?https://x'), {
+    ok: false,
+    message: '"token=abc" is not an http(s) URL.',
+  })
 })
 
 test('adding a known name replaces its URL, and junk in the store is ignored', () => {
@@ -122,12 +127,18 @@ test('while off, the list says so and dates results by their last check', () => 
   const live = listText([target], [up!], elevenMinutesLater)
   assert.match(live, /up for 11m/)
   const off = listText([target], [up!], elevenMinutesLater, true)
-  assert.equal(off.split('\n')[0], 'uptime is off: last known results, not being checked. /uptime on to resume.')
+  assert.equal(off.split('\n')[0], 'uptime is off: last known results, not being checked. Run "Uptime: Turn on" to resume.')
   assert.match(off, /up at last check, 11m ago/)
   assert.doesNotMatch(off, /up for/)
 })
 
-test('the off message names everything that stops, the pane included', () => {
-  assert.match(OFF_MESSAGE, /pane closed/)
-  assert.match(OFF_MESSAGE, /\/uptime on/)
+test('the off message names what stops and how to resume', () => {
+  assert.equal(OFF_MESSAGE, 'No checks and no notifications, also after a restart. Run "Uptime: Turn on" to resume.')
+  assert.ok(OFF_MESSAGE.endsWith(TURN_ON_HINT))
+})
+
+test('the list shows redacted URLs, or none for a notification', () => {
+  const secret = { name: 'prod', url: 'https://user:pw@prod.example/health?token=abc' }
+  assert.equal(listText([secret], [], 0), '… prod  not checked yet  https://prod.example/health?…')
+  assert.equal(listText([secret], [], 0, false, { showUrls: false }), '… prod  not checked yet')
 })
