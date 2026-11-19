@@ -1,4 +1,4 @@
-import { detailText, sparkline } from './logic.ts'
+import { detailText, formatSince, sparkline } from './logic.ts'
 import type { Snapshot } from './present.ts'
 import type { UptimeHealth, UptimeResult } from './types.ts'
 
@@ -32,5 +32,16 @@ export const rowView = (deployment: UptimeResult): RowView => ({
 })
 
 export const rowsOf = (snapshot: Snapshot) => snapshot.deployments.map(rowView)
+
+// Plain English on purpose: Orca's RelativeTime follows the system locale and mixed with the panel's English copy.
+export const sinceLabel = (since: number, now: number) => {
+  const elapsed = formatSince(since, now)
+  return elapsed === 'just now' ? elapsed : `for ${elapsed}`
+}
+
+export const checkedLabel = (checkedAt: number, now: number) => {
+  const elapsed = formatSince(checkedAt, now)
+  return elapsed === 'just now' ? `checked ${elapsed}` : `checked ${elapsed} ago`
+}
 
 export const footerText = (snapshot: Snapshot) => `every ${Math.round(snapshot.pollMs / 1000)} s`

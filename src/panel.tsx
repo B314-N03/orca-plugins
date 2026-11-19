@@ -12,7 +12,6 @@ import {
   Input,
   plugin,
   read,
-  RelativeTime,
   Row,
   set,
   Spinner,
@@ -23,7 +22,7 @@ import {
 } from 'orca'
 
 import { CHANGED, REQUESTS, type AddAnswer, type Snapshot } from './protocol.ts'
-import { footerText, rowsOf, type RowView } from './view.ts'
+import { checkedLabel, footerText, rowsOf, sinceLabel, type RowView } from './view.ts'
 
 const snapshot = atom<Snapshot | null>(null)
 const draftName = atom('')
@@ -71,19 +70,19 @@ export function setup(ctx: PanelContext): void {
   void plugin.request(REQUESTS.snapshot).then(apply)
 }
 
-function DeploymentRow({ row }: { row: RowView }) {
+function DeploymentRow({ row, now }: { row: RowView; now: number }) {
   return (
     <Box border padding="sm" radius="md">
       <Stack gap="xs">
         <Row justify="between">
-          <Row gap="xs">
+          <Row gap="xs" wrap>
             <Text tone={row.tone} weight="semibold">
               {row.icon} {row.name}
             </Text>
             <Badge tone={row.tone}>{row.health}</Badge>
             {row.since === null ? null : (
               <Text muted size="xs">
-                since <RelativeTime at={row.since} />
+                {sinceLabel(row.since, now)}
               </Text>
             )}
           </Row>
@@ -131,6 +130,7 @@ export default function Panel() {
   const current = read(snapshot)
   if (current === null) return <Spinner label="Loading deployments" />
   const rows = rowsOf(current)
+  const now = Date.now()
   return (
     <Stack gap="md">
       <Row justify="between">
@@ -147,7 +147,7 @@ export default function Panel() {
       ) : (
         <Stack gap="sm">
           {rows.map(row => (
-            <DeploymentRow key={row.key} row={row} />
+            <DeploymentRow key={row.key} row={row} now={now} />
           ))}
         </Stack>
       )}
@@ -158,7 +158,7 @@ export default function Panel() {
           </Text>
         ) : (
           <Text muted size="xs">
-            checked <RelativeTime at={current.checkedAt} /> · {footerText(current)}
+            {checkedLabel(current.checkedAt, now)} · {footerText(current)}
           </Text>
         )}
         <Button icon="refresh" variant="outline" size="sm" disabled={current.isOff || read(checking)} onPress={checkNow}>
