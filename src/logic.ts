@@ -106,7 +106,7 @@ export const formatSince = (since: number, now: number) => {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`
 }
 
-const reason = (result: UptimeResult) => {
+export const reason = (result: UptimeResult) => {
   const what = result.status === null ? (result.error ?? 'no response') : String(result.status)
   return result.failing.length > 0 ? `${what} · ${result.failing.join(', ')}` : what
 }
@@ -118,18 +118,32 @@ export const describeProblem = (result: UptimeResult) =>
 
 export const isProblem = (result: UptimeResult) => result.health === 'down' || result.health === 'degraded'
 
-// Toasts on transitions only. A target's first known health is never announced.
-export const changesBetween = (before: readonly UptimeResult[], after: readonly UptimeResult[], now: number) => {
-  const changes: string[] = []
-  for (const result of after) {
-    const previous = before.find(one => one.name === result.name)
-    if (!previous || previous.health === 'unknown' || result.health === 'unknown') continue
-    if (previous.health === result.health) continue
-    if (result.health === 'up') changes.push(`${result.name} recovered after ${formatSince(previous.since, now)}`)
-    else changes.push(describeProblem(result))
-  }
-  return changes
+export type Transition = {
+  kind: 'down' | 'degraded' | 'recovered'
+  result: UptimeResult
+  previous: UptimeResult
+  text: string
 }
+
+// Announces transitions only. A target's first known health is never announced.
+export const transitionsBetween = (
+  before: readonly UptimeResult[],
+  after: readonly UptimeResult[],
+  now: number,
+): Transition[] =>
+  after.flatMap(result => {
+    const previous = before.find(one => one.name === result.name)
+    if (!previous || previous.health === 'unknown' || result.health === 'unknown') return []
+    if (previous.health === result.health) return []
+    if (result.health === 'up') {
+      const text = `${result.name} recovered after ${formatSince(previous.since, now)}`
+      return [{ kind: 'recovered' as const, result, previous, text }]
+    }
+    return [{ kind: result.health, result, previous, text: describeProblem(result) }]
+  })
+
+export const changesBetween = (before: readonly UptimeResult[], after: readonly UptimeResult[], now: number) =>
+  transitionsBetween(before, after, now).map(transition => transition.text)
 
 export const statusText = (targets: readonly UptimeTarget[], results: readonly UptimeResult[]) => {
   if (targets.length === 0) return 'uptime: no deployments (/uptime add <name> <url>)'
