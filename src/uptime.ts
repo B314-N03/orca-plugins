@@ -97,9 +97,7 @@ export const createUptime = (deps: UptimeDeps) => {
     )
     // The list may have changed while the probes ran: removed ones drop out, added ones stay pending.
     const current = await loadTargets()
-    results = current.map(
-      target => checked.find(sameTarget(target)) ?? results.find(sameTarget(target)) ?? pendingResult(target, now),
-    )
+    results = current.map(target => checked.find(sameTarget(target)) ?? pendingResult(target, now))
     await deps.storage.set(STORAGE_KEYS.lastResults, results)
     for (const transition of transitionsBetween(before, checked, now)) await notify(notificationFor(transition, now))
     await publish()
