@@ -130,7 +130,8 @@ test('the deployment list is seeded once from the mod store and never again', as
   const first = setup({ storage: {}, legacy })
   await first.uptime.start()
   assert.deepEqual(first.host.storage.get('targets'), [STAGING])
-  assert.equal(first.host.storage.get('isOff'), true)
+  assert.equal(first.host.storage.get('isOff'), undefined, 'the mod being off does not switch the plugin off')
+  assert.equal(first.ticks.length, 1)
   assert.equal(first.host.storage.get('seededFromMod'), true)
   assert.deepEqual(first.host.notifications, [])
 

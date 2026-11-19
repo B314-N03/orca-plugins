@@ -51,7 +51,6 @@ export const createUptime = (deps: UptimeDeps) => {
     const plan = planSeed(hasList, hasList ? null : await deps.readLegacy())
     if (plan) {
       await storageSet(STORAGE_KEYS.targets, plan.targets)
-      await storageSet(STORAGE_KEYS.isOff, plan.isOff)
       deps.log(`seeded ${plan.targets.length} deployments from the Claude Code mod`)
     }
     await storageSet(STORAGE_KEYS.seeded, true)

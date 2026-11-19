@@ -86,11 +86,10 @@ test('display URLs drop credentials and query strings', () => {
   for (const [input, expected] of cases) assert.equal(displayUrl(input), expected, input)
 })
 
-test('the legacy mod store seeds targets and the off switch', () => {
+test('the legacy mod store seeds the targets, never the off switch', () => {
   const targets = [{ name: 'staging', url: 'https://staging.example/health' }]
-  assert.deepEqual(parseLegacyStore({ targets, isOff: true }), { targets, isOff: true })
-  assert.deepEqual(parseLegacyStore({ targets }), { targets, isOff: false })
-  assert.deepEqual(parseLegacyStore({ targets, isOff: 'yes' }), { targets, isOff: false })
+  assert.deepEqual(parseLegacyStore({ targets, isOff: true }), { targets })
+  assert.deepEqual(parseLegacyStore({ targets }), { targets })
   assert.equal(parseLegacyStore({ targets: [] }), null)
   assert.equal(parseLegacyStore({ targets: [{ name: 1 }] }), null)
   assert.equal(parseLegacyStore(null), null)
@@ -100,8 +99,8 @@ test('the legacy mod store seeds targets and the off switch', () => {
 
 test('seeding happens once, so an emptied list stays empty', () => {
   const legacy = { targets: [{ name: 'prod', url: 'https://prod.example/health' }], isOff: false }
-  assert.deepEqual(planSeed(undefined, legacy), { targets: legacy.targets, isOff: false })
-  assert.deepEqual(planSeed(null, legacy), { targets: legacy.targets, isOff: false })
+  assert.deepEqual(planSeed(undefined, legacy), { targets: legacy.targets })
+  assert.deepEqual(planSeed(null, legacy), { targets: legacy.targets })
   assert.equal(planSeed(true, legacy), null)
   assert.equal(planSeed(undefined, null), null)
 })
@@ -110,7 +109,6 @@ test('the legacy seed drops entries that would fail validation', () => {
   const good = { name: 'prod', url: 'https://prod.example/health' }
   assert.deepEqual(parseLegacyStore({ targets: [good, { name: 'bad name', url: 'https://x.example' }, { name: 'ftp', url: 'ftp://x' }] }), {
     targets: [good],
-    isOff: false,
   })
 })
 

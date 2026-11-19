@@ -1,15 +1,16 @@
 import { parseTargets, validateTarget } from './logic.ts'
 import type { UptimeTarget } from './types.ts'
 
-export type Seed = { targets: UptimeTarget[]; isOff: boolean }
+export type Seed = { targets: UptimeTarget[] }
 
-// The Claude Code mod's store file: `{ targets: [{ name, url }], isOff }`.
+// The Claude Code mod's store file: `{ targets: [{ name, url }], isOff }`. Only the list carries
+// over; the plugin starts on, whatever the mod's switch was.
 export const parseLegacyStore = (raw: unknown): Seed | null => {
   if (typeof raw !== 'object' || raw === null) return null
-  const { targets, isOff } = raw as { targets?: unknown; isOff?: unknown }
+  const { targets } = raw as { targets?: unknown }
   const valid = parseTargets(targets).filter(target => validateTarget(target.name, target.url).ok)
   if (valid.length === 0) return null
-  return { targets: valid, isOff: isOff === true }
+  return { targets: valid }
 }
 
 // Seeds once: after the marker is set, an emptied list stays empty.
