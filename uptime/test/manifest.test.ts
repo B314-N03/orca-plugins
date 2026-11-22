@@ -13,7 +13,7 @@ const manifest = JSON.parse(readFileSync(new URL('orca-plugin.json', root), 'utf
 // `orca plugin validate` is the authority once the updated app is installed.
 const ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const COMMAND_ID = /^[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*$/
-const TOP_LEVEL = ['$schema', 'manifestVersion', 'execution', 'id', 'name', 'version', 'description', 'engines', 'pluginApi', 'main', 'contributes', 'capabilities']
+const TOP_LEVEL = ['$schema', 'manifestVersion', 'execution', 'id', 'name', 'version', 'license', 'description', 'engines', 'pluginApi', 'main', 'contributes', 'capabilities']
 
 test('the manifest is format 2, trusted-worker, and needs an Orca with status bar items', () => {
   assert.deepEqual(Object.keys(manifest), TOP_LEVEL)
@@ -24,6 +24,7 @@ test('the manifest is format 2, trusted-worker, and needs an Orca with status ba
   assert.equal(manifest.publisher, undefined, 'a local folder gets the publisher "local"')
   assert.equal(manifest.engines.orca, '>=1.4.248')
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/)
+  assert.equal(manifest.license, 'MIT')
   for (const file of [manifest.main, ...manifest.contributes.panels.map((panel: { entry: string }) => panel.entry)]) {
     assert.ok(existsSync(new URL(file, root)), `${file} exists`)
   }

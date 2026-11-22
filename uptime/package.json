@@ -1,6 +1,7 @@
 {
   "name": "orca-uptime-plugin",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "test": "node --test 'test/*.test.ts'",

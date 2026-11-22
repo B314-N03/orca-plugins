@@ -5,6 +5,7 @@
   "id": "uptime",
   "name": "Uptime",
   "version": "0.2.0",
+  "license": "MIT",
   "description": "Checks your deployments' health endpoints every 60 s: a status bar item, a panel with history and add/remove, and a notification when one goes down, degrades or recovers.",
   "engines": { "orca": ">=1.4.248" },
   "pluginApi": 1,
